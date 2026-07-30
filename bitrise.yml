@@ -5,21 +5,30 @@ project_type: other
 # ─────────────────────────────────────────────────────────────────────────────
 # Bitrise pipeline for the Taqwright suite.
 #
-# Two workflows:
-#   emulator     → boots a Bitrise-hosted AVD and runs `--project android-ci`
-#   browserstack → uploads the APK and runs `--project browserstack-android`
+# Four workflows:
+#   emulator         → boots a Bitrise-hosted AVD and runs `--project android-ci`
+#   browserstack     → uploads the APK and runs `--project browserstack-android`
+#   ios-simulator    → boots a Bitrise-hosted iOS simulator, runs `--project ios-ci`
+#                       (needs app/way2automation.app checked in or IOS_APP_PATH set)
+#   browserstack-ios → uploads the .ipa and runs `--project browserstack-ios`
+#                       (needs app/way2automation.ipa checked in or IOS_IPA_PATH set)
 #
 # Secrets to add in Bitrise → App settings → Secrets (never in this file):
 #   BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY
 #
+# ios-simulator and browserstack-ios need a macOS stack (Xcode preinstalled) —
+# set that under Bitrise → Workflow Editor → Stack for those two workflows.
+#
 # Trigger map below mirrors the GitHub Actions setup: every push runs the
-# emulator workflow, pushes to main also run BrowserStack.
+# emulator + ios-simulator workflows, pushes to main also run both BrowserStack
+# workflows.
 # ─────────────────────────────────────────────────────────────────────────────
 
 app:
   envs:
     - NODE_VERSION: '24'
     - ANDROID_UDID: emulator-5554
+    - IOS_SIMULATOR_NAME: 'iPhone 15'
     - REPORT_DIR: playwright-report
 
 trigger_map:
@@ -29,6 +38,12 @@ trigger_map:
     workflow: emulator
   - push_branch: main
     workflow: browserstack
+  - push_branch: '*'
+    workflow: ios-simulator
+  - pull_request_source_branch: '*'
+    workflow: ios-simulator
+  - push_branch: main
+    workflow: browserstack-ios
 
 workflows:
   # ── Shared setup: Node 24 + npm ci + Appium ────────────────────────────────
@@ -121,6 +136,117 @@ workflows:
                 set -euo pipefail
                 export BROWSERSTACK_BUILD_NAME="bitrise-$BITRISE_BUILD_NUMBER"
                 npx taqwright test --project browserstack-android --workers "${BS_WORKERS:-2}"
+    after_run:
+      - _publish
+
+  # ── Shared setup for the iOS workflows: Node 24 + npm ci + Appium/XCUITest ──
+  # Needs a macOS stack (Xcode preinstalled) — set under Workflow Editor → Stack.
+  _setup_ios:
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - script@1:
+          title: Install Node $NODE_VERSION
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                source "$HOME/.nvm/nvm.sh"
+                nvm install "$NODE_VERSION"
+                nvm use "$NODE_VERSION"
+                envman add --key PATH --value "$(dirname "$(which node)"):$PATH"
+                node --version
+      - script@1:
+          title: npm ci
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                npm ci
+      - script@1:
+          title: Install Appium 3 + XCUITest driver
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                npm i -g appium@next
+                appium driver install xcuitest || true
+                appium --version
+
+  # ── Local iOS simulator run ─────────────────────────────────────────────────
+  # Requires app/way2automation.app (a simulator build) checked in, or IOS_APP_PATH
+  # pointed at one produced earlier in the pipeline — see taqwright.config.ts.
+  ios-simulator:
+    before_run:
+      - _setup_ios
+    steps:
+      - script@1:
+          title: Boot the iOS simulator
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                UDID=$(xcrun simctl list devices available -j \
+                  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                      const runtimes=JSON.parse(s).devices;
+                      for (const list of Object.values(runtimes)) {
+                        const hit=list.find(d=>d.name===process.env.IOS_SIMULATOR_NAME);
+                        if (hit) { console.log(hit.udid); process.exit(0); }
+                      }
+                      process.exit(1);
+                    })")
+                xcrun simctl boot "$UDID"
+                xcrun simctl bootstatus "$UDID" -b
+                envman add --key IOS_UDID --value "$UDID"
+      - script@1:
+          title: taqwright test --project ios-ci
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                npx taqwright test --project ios-ci
+      - script@1:
+          title: Shut down the simulator
+          is_always_run: true
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                [ -n "${IOS_UDID:-}" ] && xcrun simctl shutdown "$IOS_UDID" || true
+    after_run:
+      - _publish
+
+  # ── BrowserStack real-device run (iOS) ──────────────────────────────────────
+  # Requires app/way2automation.ipa (a signed device build) checked in, or
+  # IOS_IPA_PATH pointed at one produced earlier in the pipeline.
+  browserstack-ios:
+    before_run:
+      - _setup_ios
+    steps:
+      - script@1:
+          title: Upload IPA to BrowserStack
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                : "${BROWSERSTACK_USERNAME:?set it in Bitrise Secrets}"
+                : "${BROWSERSTACK_ACCESS_KEY:?set it in Bitrise Secrets}"
+                RESPONSE=$(curl -s -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+                  -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+                  -F "file=@./app/way2automation.ipa" \
+                  -F "custom_id=medishop-ios-$BITRISE_GIT_COMMIT")
+                echo "$RESPONSE"
+                APP_URL=$(echo "$RESPONSE" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).app_url)})")
+                envman add --key BROWSERSTACK_IOS_APP_ID --value "$APP_URL"
+      - script@1:
+          title: taqwright test --project browserstack-ios
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                export BROWSERSTACK_BUILD_NAME="bitrise-$BITRISE_BUILD_NUMBER"
+                npx taqwright test --project browserstack-ios --workers "${BS_WORKERS:-2}"
     after_run:
       - _publish
 

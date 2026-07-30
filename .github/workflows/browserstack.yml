@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: BrowserStack device name
+        description: BrowserStack device name (Android)
         default: Google Pixel 8
       os_version:
         description: Android version
@@ -16,6 +16,12 @@ on:
       workers:
         description: Parallel cloud sessions
         default: '2'
+      ios_device:
+        description: BrowserStack device name (iOS)
+        default: iPhone 15
+      ios_os_version:
+        description: iOS version
+        default: '17'
   push:
     branches: [main]
   schedule:
@@ -75,6 +81,70 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: taqwright-report-browserstack
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Where to watch the run
+        if: always()
+        run: 'echo "Video + device logs -> https://app-automate.browserstack.com/dashboard/v2/builds"'
+
+  # ── iOS real devices ──────────────────────────────────────────────────────────
+  # Requires app/way2automation.ipa (a signed device build) — see IOS_IPA_PATH in
+  # taqwright.config.ts. This job will fail until that build is added.
+  browserstack-ios:
+    name: Taqwright on BrowserStack (iOS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name != 'push' || github.repository_owner != ''
+    env:
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      BS_IOS_DEVICE: ${{ inputs.ios_device || 'iPhone 15' }}
+      BS_IOS_OS_VERSION: ${{ inputs.ios_os_version || '17' }}
+      BS_WORKERS: ${{ inputs.workers || '2' }}
+      BROWSERSTACK_BUILD_NAME: ${{ github.ref_name }}-${{ github.run_number }}
+    steps:
+      - name: Fail early if credentials are missing
+        run: |
+          if [ -z "$BROWSERSTACK_USERNAME" ] || [ -z "$BROWSERSTACK_ACCESS_KEY" ]; then
+            echo "::error::Set BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY as repository secrets."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Upload the .ipa once and reuse the bs:// id, otherwise every worker
+      # re-uploads the build.
+      - name: Upload IPA to BrowserStack
+        id: upload
+        run: |
+          RESPONSE=$(curl -s -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+            -F "file=@./app/way2automation.ipa" \
+            -F "custom_id=medishop-ios-${{ github.sha }}")
+          echo "$RESPONSE"
+          APP_URL=$(echo "$RESPONSE" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);if(!j.app_url){console.error(s);process.exit(1)}console.log(j.app_url)})")
+          echo "app_url=$APP_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run the suite on BrowserStack
+        env:
+          BROWSERSTACK_IOS_APP_ID: ${{ steps.upload.outputs.app_url }}
+        run: npx taqwright test --project browserstack-ios --workers "$BS_WORKERS"
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taqwright-report-browserstack-ios
           path: |
             playwright-report/
             test-results/

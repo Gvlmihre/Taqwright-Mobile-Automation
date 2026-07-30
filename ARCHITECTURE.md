@@ -15,7 +15,7 @@ Mobile test automation framework for the **Way2Automation MediShop** Android app
 | Core API | the flat `mobile` fixture (`Mobile`) + chainable `Locator` |
 | Language | TypeScript 5.x, ESM (`"type": "module"`) |
 | Design pattern | Page Object Model + fixtures |
-| Target platform | Android (emulator, real device, BrowserStack) |
+| Target platform | Android + iOS (emulator/simulator, real device, BrowserStack) |
 | App under test | `com.way2automation.medishop` (MediShop, Jetpack Compose) |
 | Reporting | Playwright HTML reporter + trace viewer + video |
 | Node | ≥ 24 |
@@ -31,12 +31,14 @@ phone. Anyone who knows Playwright web testing already knows 90% of this repo.
 
 ```
 PageObjectModelTW/
-├── taqwright.config.ts        # Global runner + device configuration (5 projects)
+├── taqwright.config.ts        # Global runner + device configuration (9 projects)
 ├── package.json               # Scripts & dependencies
 ├── tsconfig.json              # Typecheck-only TS config
 │
 ├── app/
-│   └── way2automation.apk     # The build under test (installed by the runner)
+│   ├── way2automation.apk     # The Android build under test (installed by the runner)
+│   ├── way2automation.app     # iOS simulator build — not checked in yet, add before running `ios`/`ios-ci`
+│   └── way2automation.ipa     # iOS device build — not checked in yet, add before running `ios-device`/`browserstack-ios`
 │
 ├── pages/                     # Page Object Model classes (the core abstraction)
 │   ├── LoginPage.ts
@@ -57,8 +59,8 @@ PageObjectModelTW/
 │   ├── login.spec.ts
 │   └── datadriven.spec.ts
 │
-├── .github/workflows/         # ci.yml, browserstack.yml
-├── bitrise.yml
+├── .github/workflows/         # ci.yml (Android + iOS), browserstack.yml (Android + iOS)
+├── bitrise.yml                # emulator/browserstack (Android), ios-simulator/browserstack-ios
 ├── playwright-report/         # Generated HTML report output
 └── test-results/              # Generated run artifacts (traces, videos)
 ```
@@ -120,7 +122,7 @@ Single source of truth, passed to `defineConfig()`. Top-level settings:
 | `forbidOnly` | `!!process.env.CI` | a stray `test.only` fails the build |
 | `workers` | `1` | serial: one Appium, one device |
 
-Then five **projects**, each with its own `use` block:
+Then nine **projects**, each with its own `use` block:
 
 | Project | `device` | Notes |
 |---------|----------|-------|
@@ -129,19 +131,29 @@ Then five **projects**, each with its own `use` block:
 | `android-ci` | `provider: 'emulator'`, `udid: ANDROID_UDID` | `autoStartDevice: false` — the CI step already booted it; `retries: 2` |
 | `android-device` | `provider: 'local-device'`, `udid: DEVICE_UDID` | physical handset over adb |
 | `browserstack-android` | `provider: 'browserstack'`, `name`, `osVersion` | `buildPath` takes a `bs://` id; `workers` = parallel cloud sessions |
+| `ios` | `provider: 'emulator'`, `name: SIMULATOR_NAME` | `appium.autoStartDevice: true` boots the named simulator; `platform: Platform.IOS` |
+| `ios-ci` | `provider: 'emulator'`, `udid: CI_IOS_UDID` | `autoStartDevice: false` — the CI step already booted it; `retries: 2` |
+| `ios-device` | `provider: 'local-device'`, `udid: IOS_DEVICE_UDID` | physical iPhone over usbmuxd; `buildPath` is a signed `.ipa` |
+| `browserstack-ios` | `provider: 'browserstack'`, `name`, `osVersion` | same shape as `browserstack-android`, `.ipa`-based |
 
 Three settings are **type-required together** and are what give us isolation:
 
 ```ts
 resetBetweenTests: true,                       // clean install + relaunch per test
-buildPath: './app/way2automation.apk',
+buildPath: './app/way2automation.apk',         // or way2automation.app / .ipa for iOS
 appBundleId: 'com.way2automation.medishop',
 ```
 
 `trace` and `video` (`'off' | 'on' | 'on-failure' | 'retain-on-failure'`) attach a per-action
 screenshot/page-source timeline and a screen recording to the HTML report. Everything device- or
 credential-specific is read from env vars (`ANDROID_AVD`, `ANDROID_UDID`, `DEVICE_UDID`,
-`BS_DEVICE`, `BROWSERSTACK_APP_ID`, …) so the same file works on every machine and in CI.
+`BS_DEVICE`, `BROWSERSTACK_APP_ID`, `IOS_SIMULATOR_NAME`, `IOS_UDID`, `IOS_DEVICE_UDID`,
+`BS_IOS_DEVICE`, `BROWSERSTACK_IOS_APP_ID`, …) so the same file works on every machine and in CI.
+
+iOS and Android otherwise share every other setting (`resetBetweenTests`, `trace`, `video`,
+`appium.host`/`port`) — only `platform` and `device` differ, exactly as the "adding a device target
+means adding a project" rule in CLAUDE.md intends. `platformName` and `appium:automationName`
+(`UiAutomator2` vs `XCUITest`) are derived automatically from `platform`, not set by hand.
 
 ### 4.2 `fixtures/test.ts` — Dependency Injection Layer
 
@@ -291,6 +303,13 @@ a test signature (`{ homePage, cartPage }`) constructs it automatically.
 | `getByType('android.widget.CheckBox')` | native class | `class name` |
 | `getByXpath` / `getByUiSelector` | raw escape hatches | — |
 
+On iOS the same methods resolve to the XCUITest equivalents (`accessibility id`, `-ios predicate
+string`, `-ios class chain`) instead of the Android strategies above — the page-object API doesn't
+change, only what Appium does underneath. The page objects in this repo (`getById`, `getByType`)
+were written and inspected against the Android build only; porting them to run against the iOS
+build will likely need `npm run inspect --project ios` to find the equivalent iOS locators, per the
+"Locator strategy for Jetpack Compose" gotcha in CLAUDE.md.
+
 Chaining and filtering: `.filter({ hasText, has, hasNot, visible })`, `.first()`, `.last()`,
 `.nth(n)`, `.locator(child)`, `.and()`, `.or()`, `.count()`, `.all()`.
 
@@ -340,16 +359,25 @@ Device: `setOrientation`, `getClipboard`/`setClipboard`, `setLocation`, `setPerm
 
 ```bash
 npm run setup:android    # one-time toolchain + AVD
-npm run doctor           # environment check
-npm test                 # local emulator
+npm run setup:ios        # one-time: Appium's XCUITest driver
+npm run doctor           # environment check (Android toolchain + Xcode)
+npm test                 # local Android emulator
+npm run test:ios         # local iOS simulator
 npm run test:report      # run + open the HTML report
-npm run test:device      # physical handset (DEVICE_UDID=...)
-npm run test:bs          # BrowserStack (BROWSERSTACK_USERNAME/ACCESS_KEY)
+npm run test:device      # physical Android handset (DEVICE_UDID=...)
+npm run test:ios:device  # physical iPhone (IOS_DEVICE_UDID=...)
+npm run test:bs          # BrowserStack Android (BROWSERSTACK_USERNAME/ACCESS_KEY)
+npm run test:ios:bs      # BrowserStack iOS (same credentials)
 ```
 
-**Prerequisites:** Node ≥ 24, a JDK + Android SDK (`npm run setup:android` installs both), and
-either an AVD whose id matches `ANDROID_AVD` or a handset visible to `adb devices`. The APK is
-installed by the runner via `buildPath`, so nothing needs to be pre-installed.
+**Android prerequisites:** a JDK + Android SDK (`npm run setup:android` installs both), and either
+an AVD whose id matches `ANDROID_AVD` or a handset visible to `adb devices`. The APK is installed
+by the runner via `buildPath`, so nothing needs to be pre-installed.
+
+**iOS prerequisites (macOS only):** full Xcode with a simulator runtime, and the XCUITest driver
+(`npm run setup:ios`). Unlike Android, there is no `.app`/`.ipa` checked into `app/` yet — add
+`app/way2automation.app` (simulator) and `app/way2automation.ipa` (device/BrowserStack), or point
+`IOS_APP_PATH`/`IOS_IPA_PATH` at builds produced elsewhere, before an `ios*` project can run.
 
 ---
 

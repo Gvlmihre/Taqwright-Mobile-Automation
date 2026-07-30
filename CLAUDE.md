@@ -8,21 +8,25 @@ Guidance for AI models (Claude Code) working in this repository. Read this first
 
 ## What this project is
 
-A **mobile test-automation framework** for the Way2Automation **MediShop** Android app
+A **mobile test-automation framework** for the Way2Automation **MediShop** Android/iOS app
 (`com.way2automation.medishop`), built on **Taqwright** (Playwright's test runner over Appium 3)
 using **TypeScript** (ESM) and the **Page Object Model** pattern.
 
 ## Commands
 
 ```bash
-npm test                # suite on a local emulator (--project android)
+npm test                # Android suite on a local emulator (--project android)
 npm run test:ci         # against an already-booted emulator (--project android-ci)
 npm run test:device     # physical handset (--project android-device)
 npm run test:bs         # BrowserStack (--project browserstack-android)
 npm run test:rough      # the rough/ reference specs (--project android-rough)
+npm run test:ios        # iOS suite on a local simulator (--project ios)
+npm run test:ios:ci     # against an already-booted simulator (--project ios-ci)
+npm run test:ios:device # physical iPhone (--project ios-device)
+npm run test:ios:bs     # BrowserStack iOS (--project browserstack-ios)
 npm run test:report     # run with the HTML reporter, then open it
 npm run typecheck       # tsc --noEmit  ← run this after any code change
-npm run doctor          # environment readiness check
+npm run doctor          # environment readiness check (Android toolchain + Xcode)
 npm run devices         # list emulators / simulators / handsets
 npm run codegen         # record a spec against a live device
 ```
@@ -35,10 +39,18 @@ check that runs without a device; always run it before committing.
 - **Node ≥ 24** (`nvm use` reads `.nvmrc`). The package refuses older majors.
 - A JDK + Android SDK + Appium 3 with the UiAutomator2 driver — `npm run setup:android` installs
   all of it, `npm run doctor` verifies it.
-- Either an AVD whose id matches `ANDROID_AVD` (default `taqwright_api34`) or a handset visible to
-  `adb devices` with its serial in `DEVICE_UDID`.
+- Either an AVD whose id matches `ANDROID_AVD` (default `Pixel_10_Pro_XL`, API 37.0) or a handset
+  visible to `adb devices` with its serial in `DEVICE_UDID`.
 - The APK at `app/way2automation.apk`. It is installed by the runner via `buildPath` — do not
   assume a pre-installed app.
+- **iOS only, macOS host:** full Xcode (`xcode-select -p` must point at `Xcode.app`, not just the
+  Command Line Tools) with a simulator runtime installed, plus Appium's XCUITest driver
+  (`npm run setup:ios`). `npm run doctor` checks Xcode; there is no auto-installer for it the way
+  `npm run setup:android` covers the Android toolchain.
+- **iOS builds are not checked in yet.** `app/way2automation.app` (simulator, for `ios`/`ios-ci`)
+  and `app/way2automation.ipa` (signed device build, for `ios-device`/`browserstack-ios`) must be
+  added, or `IOS_APP_PATH`/`IOS_IPA_PATH` pointed at builds produced elsewhere, before an iOS
+  project can actually run.
 
 ---
 
@@ -52,7 +64,7 @@ check that runs without a device; always run it before committing.
 | `testData/*.json` | external test data | no data literals hardcoded in specs |
 | `tests/*.spec.ts` | maintained production specs | import from `../fixtures/test`, never the base runner |
 | `rough/*.spec.ts` | scratch / reference specs | import base `@taqwright/taqwright`; NOT maintained |
-| `app/` | the `.apk` binary | referenced by `buildPath` |
+| `app/` | the `.apk`/`.app`/`.ipa` binaries | referenced by `buildPath`; only the `.apk` is checked in today |
 | `.github/workflows/`, `bitrise.yml` | CI | see the CI section below |
 | `playwright-report/`, `test-results/` | generated output | do not edit; safe to delete |
 
@@ -166,6 +178,12 @@ the same package.
   locator can't be found, run `npm run inspect`, look at how the node is actually exposed, and fall
   back to `getByLabel('...')` (content-desc) — or combine them:
   `mobile.getById('email_id').or(mobile.getByLabel('email_id'))`.
+- **The existing `pages/` locators are Android-only** (`getById` → resource-id, `getByType`
+  → `android.widget.*`). Nothing here has been verified against the iOS build — the config layer
+  supports `Platform.IOS`, but running the suite against iOS for real will need `npm run inspect
+  --project ios` against an actual iOS build to find the SwiftUI/UIKit-equivalent locators (likely
+  `getByLabel` for accessibility identifiers, since iOS has no `resource-id` concept) before the
+  same page objects can pass on both platforms.
 - **JSON imports need `with { type: 'json' }`** (see Test data above).
 - **`--list` still starts an Appium server.** It's slow but harmless; that's why CI uses it as a
   config-validation step rather than a fast unit check.
@@ -176,18 +194,28 @@ the same package.
 
 ## CI
 
-- `.github/workflows/ci.yml` — every push and PR: `static` (npm ci → typecheck → `--list`) then
-  `android-emulator` (KVM + cached AVD snapshot → API 34 x86_64 emulator → `--project android-ci`
-  → upload `playwright-report/` + `test-results/`).
+- `.github/workflows/ci.yml` — every push and PR: `static` (npm ci → typecheck → `--list` for both
+  `android-ci` and `ios-ci`), `android-emulator` (KVM + cached AVD snapshot → API 34 x86_64
+  emulator → `--project android-ci`), and `ios-simulator` (`macos-14` runner → boot an iPhone 15
+  simulator → `--project ios-ci`). Each uploads its own `playwright-report/` + `test-results/`.
 - `.github/workflows/browserstack.yml` — pushes to `main`, nightly cron, and `workflow_dispatch`:
-  upload the APK once, export `BROWSERSTACK_APP_ID=bs://…`, run `--project browserstack-android`.
-  Requires the `BROWSERSTACK_USERNAME` / `BROWSERSTACK_ACCESS_KEY` repository secrets.
-- `bitrise.yml` — the same two paths as Bitrise workflows (`emulator`, `browserstack`) sharing a
-  `_setup` workflow, publishing the report through `deploy-to-bitrise-io`.
+  `browserstack-android` uploads the APK once, exports `BROWSERSTACK_APP_ID=bs://…`, runs
+  `--project browserstack-android`; `browserstack-ios` does the same with the `.ipa` and
+  `BROWSERSTACK_IOS_APP_ID` / `--project browserstack-ios`. Requires the `BROWSERSTACK_USERNAME` /
+  `BROWSERSTACK_ACCESS_KEY` repository secrets (shared by both jobs).
+- `bitrise.yml` — four workflows: `emulator` / `browserstack` (Android, `_setup`) and
+  `ios-simulator` / `browserstack-ios` (iOS, `_setup_ios` — needs a macOS Stack set in the Workflow
+  Editor), all publishing the report through `deploy-to-bitrise-io`.
 
-When editing CI: the runner needs **Node 24**, a **JDK 17**, and **Appium with the uiautomator2
-driver**; the emulator must already be booted for `--project android-ci` (`autoStartDevice: false`),
-and `ANDROID_UDID` must match its adb serial.
+When editing Android CI: the runner needs **Node 24**, a **JDK 17**, and **Appium with the
+uiautomator2 driver**; the emulator must already be booted for `--project android-ci`
+(`autoStartDevice: false`), and `ANDROID_UDID` must match its adb serial.
+
+When editing iOS CI: the runner needs a **macOS host with Xcode** (GitHub Actions: `macos-14`;
+Bitrise: a macOS Stack) and **Appium with the xcuitest driver**; the simulator must already be
+booted for `--project ios-ci` (`autoStartDevice: false`), and `IOS_UDID` must match the booted
+simulator's UDID (resolve it with `xcrun simctl list devices available -j`, as both `ci.yml` and
+`bitrise.yml` do). None of the iOS jobs will pass until `app/way2automation.app` / `.ipa` exist.
 
 ---
 

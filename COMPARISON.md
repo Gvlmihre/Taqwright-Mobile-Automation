@@ -20,7 +20,7 @@ and use the same Page Object Model layering. This file is the delta — what to 
 | Cloud | — | BrowserStack / LambdaTest as a first-class provider |
 | Artifacts | HTML report | HTML report + **trace timeline + video + HAR**, each `on-failure` |
 | Tooling | — | `init`, `doctor`, `devices`, `inspect`, `codegen`, `install`, `merge-reports`, `show-report` |
-| iOS | supported by the framework | same specs, `Platform.IOS` project |
+| iOS | supported by the framework | `ios` / `ios-ci` / `ios-device` / `browserstack-ios` projects — same specs, `Platform.IOS`; needs an `.app`/`.ipa` build (not checked in yet) |
 | Node | any modern | **≥ 24** |
 
 ## 1. Fixtures: two objects vs one
@@ -150,10 +150,15 @@ await expect(this.removeButtons).toHaveCount(0);
 deviceName: 'R3CT204N57L',
 
 // Taqwright — a project per target, provider-driven
-device: { provider: 'emulator',     name: 'taqwright_api34' }
+device: { provider: 'emulator',     name: 'Pixel_10_Pro_XL' }
 device: { provider: 'local-device', udid: 'R3CT204N57L' }
 device: { provider: 'browserstack', name: 'Google Pixel 8', osVersion: '14.0' }
 device: { provider: 'emulator',     autoDiscover: true }        // pool resolved for you
+
+// Same providers, iOS side — only `platform: Platform.IOS` + the device block change
+device: { provider: 'emulator',     name: 'iPhone 17 Pro', osVersion: '26.5' }   // simulator
+device: { provider: 'local-device', udid: '<iPhone UDID>' }                  // physical iPhone
+device: { provider: 'browserstack', name: 'iPhone 15', osVersion: '17' }
 ```
 
 Local parallelism needs a `device.pool` (or `autoDiscover`) with at least `workers` entries —
@@ -172,14 +177,17 @@ Cloud parallelism is plain `workers: N`.
 
 MobileWright's repo ran locally against a named handset. This repo ships:
 
-- **GitHub Actions `ci.yml`** — typecheck + config-load check, then an API 34 emulator (cached AVD
-  snapshot) on every push and PR, with the report as a build artifact.
-- **GitHub Actions `browserstack.yml`** — APK uploaded once, `bs://` id reused, real devices on
-  `main` + nightly + manual.
-- **`bitrise.yml`** — the same two paths as Bitrise workflows.
+- **GitHub Actions `ci.yml`** — typecheck + config-load check (Android and iOS), then an API 34
+  emulator (cached AVD snapshot) and an iPhone 15 simulator (macOS runner) on every push and PR,
+  with the report as a build artifact for each.
+- **GitHub Actions `browserstack.yml`** — APK/`.ipa` uploaded once each, `bs://` id reused, real
+  Android and iOS devices on `main` + nightly + manual.
+- **`bitrise.yml`** — the same four paths (`emulator`, `browserstack`, `ios-simulator`,
+  `browserstack-ios`) as Bitrise workflows; the iOS two need a macOS Stack.
 
-Because only `taqwright.config.ts` knows about devices, the specs themselves are identical in all
-five environments.
+Because only `taqwright.config.ts` knows about devices, the specs themselves are identical across
+all nine environments — once an iOS build exists (see the note in README.md; none is checked in
+yet).
 
 ---
 
