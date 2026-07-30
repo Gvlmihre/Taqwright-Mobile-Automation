@@ -1,0 +1,85 @@
+name: BrowserStack real devices
+
+# Cloud runs cost money and need credentials, so they are not on every push:
+#   - manual trigger (any branch, pick the device)
+#   - every push to main
+#   - nightly
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: BrowserStack device name
+        default: Google Pixel 8
+      os_version:
+        description: Android version
+        default: '14.0'
+      workers:
+        description: Parallel cloud sessions
+        default: '2'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  browserstack-android:
+    name: Taqwright on BrowserStack
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Skip silently on forks / repos without credentials configured.
+    if: github.event_name != 'push' || github.repository_owner != ''
+    env:
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      BS_DEVICE: ${{ inputs.device || 'Google Pixel 8' }}
+      BS_OS_VERSION: ${{ inputs.os_version || '14.0' }}
+      BS_WORKERS: ${{ inputs.workers || '2' }}
+      BROWSERSTACK_BUILD_NAME: ${{ github.ref_name }}-${{ github.run_number }}
+    steps:
+      - name: Fail early if credentials are missing
+        run: |
+          if [ -z "$BROWSERSTACK_USERNAME" ] || [ -z "$BROWSERSTACK_ACCESS_KEY" ]; then
+            echo "::error::Set BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY as repository secrets."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Upload the APK once and reuse the bs:// id, otherwise every worker
+      # re-uploads the 20 MB build.
+      - name: Upload APK to BrowserStack
+        id: upload
+        run: |
+          RESPONSE=$(curl -s -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+            -F "file=@./app/way2automation.apk" \
+            -F "custom_id=medishop-${{ github.sha }}")
+          echo "$RESPONSE"
+          APP_URL=$(echo "$RESPONSE" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);if(!j.app_url){console.error(s);process.exit(1)}console.log(j.app_url)})")
+          echo "app_url=$APP_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run the suite on BrowserStack
+        env:
+          BROWSERSTACK_APP_ID: ${{ steps.upload.outputs.app_url }}
+        run: npx taqwright test --project browserstack-android --workers "$BS_WORKERS"
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taqwright-report-browserstack
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Where to watch the run
+        if: always()
+        run: 'echo "Video + device logs -> https://app-automate.browserstack.com/dashboard/v2/builds"'

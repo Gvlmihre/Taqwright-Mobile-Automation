@@ -1,0 +1,12 @@
+node_modules/
+playwright-report/
+test-results/
+blob-report/
+.taqwright/
+*.log
+npm-debug.log*
+.DS_Store
+.env
+.env.local
+.idea/
+.vscode/

@@ -1,0 +1,141 @@
+format_version: '13'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bitrise pipeline for the Taqwright suite.
+#
+# Two workflows:
+#   emulator     → boots a Bitrise-hosted AVD and runs `--project android-ci`
+#   browserstack → uploads the APK and runs `--project browserstack-android`
+#
+# Secrets to add in Bitrise → App settings → Secrets (never in this file):
+#   BROWSERSTACK_USERNAME, BROWSERSTACK_ACCESS_KEY
+#
+# Trigger map below mirrors the GitHub Actions setup: every push runs the
+# emulator workflow, pushes to main also run BrowserStack.
+# ─────────────────────────────────────────────────────────────────────────────
+
+app:
+  envs:
+    - NODE_VERSION: '24'
+    - ANDROID_UDID: emulator-5554
+    - REPORT_DIR: playwright-report
+
+trigger_map:
+  - push_branch: '*'
+    workflow: emulator
+  - pull_request_source_branch: '*'
+    workflow: emulator
+  - push_branch: main
+    workflow: browserstack
+
+workflows:
+  # ── Shared setup: Node 24 + npm ci + Appium ────────────────────────────────
+  _setup:
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - script@1:
+          title: Install Node $NODE_VERSION
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                source "$HOME/.nvm/nvm.sh"
+                nvm install "$NODE_VERSION"
+                nvm use "$NODE_VERSION"
+                echo "PATH=$(dirname "$(which node)"):$PATH" >> /dev/null
+                envman add --key PATH --value "$(dirname "$(which node)"):$PATH"
+                node --version
+      - script@1:
+          title: npm ci
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                npm ci
+      - script@1:
+          title: Install Appium 3 + UiAutomator2
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euxo pipefail
+                npm i -g appium@next
+                appium driver install uiautomator2 || true
+                appium --version
+
+  # ── Local emulator run ─────────────────────────────────────────────────────
+  emulator:
+    before_run:
+      - _setup
+    steps:
+      - avd-manager@1:
+          inputs:
+            - api_level: '34'
+            - profile: pixel_5
+            - tag: google_apis
+            - abi: x86_64
+            - emulator_channel: '0'
+      - wait-for-android-emulator@1: {}
+      - script@1:
+          title: taqwright test --project android-ci
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                adb devices
+                adb shell settings put global window_animation_scale 0
+                adb shell settings put global transition_animation_scale 0
+                adb shell settings put global animator_duration_scale 0
+                npx taqwright test --project android-ci
+    after_run:
+      - _publish
+
+  # ── BrowserStack real-device run ───────────────────────────────────────────
+  browserstack:
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Upload APK to BrowserStack
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                : "${BROWSERSTACK_USERNAME:?set it in Bitrise Secrets}"
+                : "${BROWSERSTACK_ACCESS_KEY:?set it in Bitrise Secrets}"
+                RESPONSE=$(curl -s -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+                  -X POST "https://api-cloud.browserstack.com/app-automate/upload" \
+                  -F "file=@./app/way2automation.apk" \
+                  -F "custom_id=medishop-$BITRISE_GIT_COMMIT")
+                echo "$RESPONSE"
+                APP_URL=$(echo "$RESPONSE" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).app_url)})")
+                envman add --key BROWSERSTACK_APP_ID --value "$APP_URL"
+      - script@1:
+          title: taqwright test --project browserstack-android
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                export BROWSERSTACK_BUILD_NAME="bitrise-$BITRISE_BUILD_NUMBER"
+                npx taqwright test --project browserstack-android --workers "${BS_WORKERS:-2}"
+    after_run:
+      - _publish
+
+  # ── Publish the HTML report as a build artifact ────────────────────────────
+  _publish:
+    steps:
+      - script@1:
+          title: Collect report
+          is_always_run: true
+          inputs:
+            - content: |-
+                #!/usr/bin/env bash
+                set -euo pipefail
+                mkdir -p "$BITRISE_DEPLOY_DIR"
+                [ -d "$REPORT_DIR" ] && cp -R "$REPORT_DIR" "$BITRISE_DEPLOY_DIR/" || true
+                [ -d test-results ] && cp -R test-results "$BITRISE_DEPLOY_DIR/" || true
+      - deploy-to-bitrise-io@2:
+          is_always_run: true
