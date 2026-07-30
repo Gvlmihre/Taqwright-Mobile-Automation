@@ -307,7 +307,7 @@ the positional test filter is a regex, not a glob, so a separate project is the 
 1. `static`: `actions/setup-node@v4` (node 24, `cache: npm`) → `npm ci` → `npm run typecheck` →
    `npx taqwright test --project android-ci --list` (proves the config loads).
 2. `android-emulator`: enable KVM via a udev rule → `setup-java@v4` (temurin 17) → setup-node 24 →
-   `npm ci` → install `appium@next` + the `uiautomator2` driver → cache `~/.android/avd` →
+   `npm ci` → install `appium@3` + the `uiautomator2` driver → cache `~/.android/avd` →
    `reactivecircus/android-emulator-runner@v2` (api-level 34, `google_apis`, `x86_64`,
    `-no-window -gpu swiftshader_indirect`) with `script: npx taqwright test --project android-ci` →
    `actions/upload-artifact@v4` for `playwright-report/` and `test-results/`.
