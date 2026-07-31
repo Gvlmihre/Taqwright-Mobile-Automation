@@ -12,6 +12,8 @@
     "test:ci": "taqwright test --project android-ci",
     "test:device": "taqwright test --project android-device",
     "test:bs": "taqwright test --project browserstack-android",
+    "bs:upload": "node scripts/upload-to-browserstack.mjs",
+    "bs:upload:ios": "node scripts/upload-to-browserstack.mjs --ios",
     "test:report": "taqwright test --project android --reporter html && taqwright show-report",
     "test:ios": "taqwright test --project ios",
     "test:ios:ci": "taqwright test --project ios-ci",
@@ -29,6 +31,7 @@
   "devDependencies": {
     "@taqwright/taqwright": "^0.1.0-beta.3",
     "@types/node": "^24.3.0",
+    "dotenv": "^17.4.2",
     "typescript": "^5.9.2"
   }
 }

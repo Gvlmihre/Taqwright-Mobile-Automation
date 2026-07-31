@@ -1,3 +1,6 @@
+// Loads .env into process.env before anything below reads it. Must stay first.
+// .env holds BROWSERSTACK_USERNAME / ACCESS_KEY / APP_ID and is gitignored.
+import 'dotenv/config';
 import { defineConfig, Platform } from '@taqwright/taqwright';
 
 /**
@@ -169,7 +172,9 @@ export default defineConfig({
         capabilities: {
           'bstack:options': {
             projectName: 'PageObjectModelTW',
-            buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'local',
+            // Just a label to group this run in the BrowserStack dashboard —
+            // nothing to do with the BrowserStack Local tunnel.
+            buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'medishop-manual-run',
             appiumVersion: '2.19.0',
           },
         },
@@ -274,7 +279,9 @@ export default defineConfig({
         capabilities: {
           'bstack:options': {
             projectName: 'PageObjectModelTW',
-            buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'local',
+            // Just a label to group this run in the BrowserStack dashboard —
+            // nothing to do with the BrowserStack Local tunnel.
+            buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'medishop-manual-run',
             appiumVersion: '2.19.0',
           },
         },
