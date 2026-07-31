@@ -1,14 +1,17 @@
 [
   {
     "email": "trainer@way2automation.com",
-    "password": "way2automation"    
+    "password": "way2automation",
+    "valid": true   
   },
   {
     "email": "emma@demoapp.com",
-    "password": "10203040"
+    "password": "10203040",
+    "valid": false
   },
   {
     "email": "testuser@gmail.com",
-    "password": "test123"
+    "password": "test123",
+    "valid": false
   }
 ]

@@ -11,6 +11,10 @@ export class HomePage {
         return this.mobile.getByXpath("//*[@resource-id='list_id']");
     }
 
+    private get popularMedicines() {
+        return this.mobile.getByXpath("//*[@text='Popular Medicines']");
+    }
+
 
     /** Parameterized locator — a private method, not a getter. */
     private category(name: string) {
@@ -27,7 +31,7 @@ export class HomePage {
 
     // ----Actions----
     async expectLoaded() {
-        await expect(this.medicineList).toBeVisible();
+        await expect(this.popularMedicines).toBeVisible();
     }
 
     async selectCategory(name: string) {

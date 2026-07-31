@@ -38,7 +38,10 @@ export class LoginPage {
     private get signInButton() {
         return this.mobile.getByText('Sign In');
     }
-
+    
+    private get invalidCredentialsError() {
+    return this.mobile.getByUiSelector("new UiSelector().text(\"Invalid credentials\")"); 
+    }
 
     // ----Actions----
 
@@ -62,12 +65,12 @@ export class LoginPage {
 
     /** `fill` focuses, clears, then sends real key events — no select-all/cut dance. */
     async enterEmail(email: string) {
-        await this.mobile.getByUiSelector("new UiSelector().resourceId(\"email_id\")").clear();
+        await this.emailField.clear();
         await this.emailField.fill(email);
     }
 
     async enterPassword(password: string) {
-        await this.mobile.getByUiSelector("new UiSelector().resourceId(\"password_id\")").clear();
+        await this.passwordField.clear();
         await this.passwordField.fill(password);
     }
 
@@ -96,4 +99,9 @@ export class LoginPage {
     async expectLoaded() {
         await expect(this.signInButton).toBeVisible();
     }
+
+    async expectInvalidCredentials() {
+    await expect(this.invalidCredentialsError).toBeVisible();
+}
+
 }

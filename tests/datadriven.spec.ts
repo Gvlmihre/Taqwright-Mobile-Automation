@@ -9,6 +9,11 @@ for (const data of testData) {
     test(`Login test for ${data.email}`, async ({ loginPage, homePage }) => {
         await loginPage.open();
         await loginPage.login(data.email, data.password);
-        await homePage.expectLoaded();
+
+        if (data.valid) {
+            await homePage.expectLoaded();
+        } else {
+            await loginPage.expectInvalidCredentials();
+        }
     });
 }
