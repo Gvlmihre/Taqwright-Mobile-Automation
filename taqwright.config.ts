@@ -50,7 +50,6 @@ const CI_UDID = process.env.ANDROID_UDID ?? 'emulator-5554';
 export default defineConfig({
   testDir: './tests',
   timeout: 90_000,
-  expectTimeout: 60_000,
   outputDir: './test-results',
   reporter: [['list'], ['html', { open: 'never' }]],
   retries: process.env.CI ? 1 : 0,
@@ -65,6 +64,7 @@ export default defineConfig({
       name: 'android',
       use: {
         platform: Platform.ANDROID,
+        expectTimeout: 60_000,
         device: {
           provider: 'emulator',
           name: AVD_NAME,
@@ -101,6 +101,7 @@ export default defineConfig({
       name: 'android-ci',
       use: {
         platform: Platform.ANDROID,
+        expectTimeout: 60_000,
         device: {
           provider: 'emulator',
           udid: CI_UDID,
@@ -131,6 +132,7 @@ export default defineConfig({
       name: 'android-device',
       use: {
         platform: Platform.ANDROID,
+        expectTimeout: 60_000,
         device: {
           provider: 'local-device',
           //udid: DEVICE_UDID,
@@ -155,6 +157,7 @@ export default defineConfig({
       name: 'browserstack-android',
       use: {
         platform: Platform.ANDROID,
+        expectTimeout: 60_000,
         device: {
           provider: 'browserstack',
           name: process.env.BS_DEVICE ?? 'Google Pixel 8',
