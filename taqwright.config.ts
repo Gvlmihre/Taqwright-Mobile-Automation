@@ -121,7 +121,7 @@ export default defineConfig({
         capabilities: {
           'appium:autoGrantPermissions': true,
         },
-        trace: 'on',
+        trace: 'on-failure',
         video: 'on-failure',
       },
       retries: 2,
