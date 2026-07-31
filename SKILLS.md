@@ -291,16 +291,7 @@ for (const data of testData) {
 
 ---
 
-## Phase 8 — Scratch area (`rough/`) — optional but recommended
-
-Prototype raw specs importing the **base** `@taqwright/taqwright` with locators inlined, then extract
-locators into page getters and steps into action methods. Give `rough/` its own project
-(`{ name: 'android-rough', testDir: './rough', ... }`) so it never joins the maintained suite —
-the positional test filter is a regex, not a glob, so a separate project is the clean way to do this.
-
----
-
-## Phase 9 — CI: run on every push
+## Phase 8 — CI: run on every push
 
 **GitHub Actions** — `.github/workflows/ci.yml`, two jobs:
 
@@ -336,7 +327,7 @@ artifact.
 
 ---
 
-## Phase 10 — Documentation
+## Phase 9 — Documentation
 
 Produce the companion docs so the framework is self-describing:
 - `README.md` — quick start, scripts, layout, projects, CI, secrets.
@@ -357,9 +348,8 @@ Produce the companion docs so the framework is self-describing:
 5. fixtures/test.ts             → inject page objects
 6. testData/*.json              → external inputs
 7. tests/*.spec.ts              → scenarios (via fixtures + pages)
-8. rough/*.spec.ts              → prototype → refactor (optional)
-9. .github/workflows + bitrise.yml → run on every push, then cloud devices
-10. docs                        → README / ARCHITECTURE / CLAUDE / SKILLS
+8. .github/workflows + bitrise.yml → run on every push, then cloud devices
+9. docs                         → README / ARCHITECTURE / CLAUDE / SKILLS
 ```
 
 ## Golden rules (what makes this framework what it is)

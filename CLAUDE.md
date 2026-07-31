@@ -19,7 +19,6 @@ npm test                # Android suite on a local emulator (--project android)
 npm run test:ci         # against an already-booted emulator (--project android-ci)
 npm run test:device     # physical handset (--project android-device)
 npm run test:bs         # BrowserStack (--project browserstack-android)
-npm run test:rough      # the rough/ reference specs (--project android-rough)
 npm run test:ios        # iOS suite on a local simulator (--project ios)
 npm run test:ios:ci     # against an already-booted simulator (--project ios-ci)
 npm run test:ios:device # physical iPhone (--project ios-device)
@@ -63,7 +62,6 @@ check that runs without a device; always run it before committing.
 | `fixtures/test.ts` | custom fixtures wiring page objects | the only place page objects are constructed |
 | `testData/*.json` | external test data | no data literals hardcoded in specs |
 | `tests/*.spec.ts` | maintained production specs | import from `../fixtures/test`, never the base runner |
-| `rough/*.spec.ts` | scratch / reference specs | import base `@taqwright/taqwright`; NOT maintained |
 | `app/` | the `.apk`/`.app`/`.ipa` binaries | referenced by `buildPath`; only the `.apk` is checked in today |
 | `.github/workflows/`, `bitrise.yml` | CI | see the CI section below |
 | `playwright-report/`, `test-results/` | generated output | do not edit; safe to delete |
@@ -187,8 +185,8 @@ the same package.
 - **JSON imports need `with { type: 'json' }`** (see Test data above).
 - **`--list` still starts an Appium server.** It's slow but harmless; that's why CI uses it as a
   config-validation step rather than a fast unit check.
-- **The positional filter is a regex, not a glob.** `taqwright test 'rough/**/*.spec.ts'` throws;
-  use `--project android-rough` (a project with its own `testDir`) instead.
+- **The positional filter is a regex, not a glob.** `taqwright test 'tests/**/*.spec.ts'` throws;
+  use `--project android` (a project with its own `testDir`) instead.
 
 ---
 
@@ -225,8 +223,7 @@ simulator's UDID (resolve it with `xcrun simctl list devices available -j`, as b
 2. Register it as a fixture in `fixtures/test.ts` (add to the `Pages` type + an `extend` entry).
 3. Write the spec in `tests/`, driving only through the page object.
 4. Put any new data in `testData/`.
-5. Prototype freely in `rough/` if useful, then refactor into the POM layers.
-6. Run `npm run typecheck`, then the suite on a device.
+5. Run `npm run typecheck`, then the suite on a device.
 
 Keep the layer boundaries intact: **config → fixtures → pages → tests/data.** Specs must never touch
-`mobile` directly (that's what `rough/` shows as the anti-pattern).
+`mobile` directly.

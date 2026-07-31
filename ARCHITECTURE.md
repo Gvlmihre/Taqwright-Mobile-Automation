@@ -55,10 +55,6 @@ PageObjectModelTW/
 │   ├── login.spec.ts
 │   └── datadriven.spec.ts
 │
-├── rough/                     # Scratch / reference specs (NOT POM-based)
-│   ├── login.spec.ts
-│   └── datadriven.spec.ts
-│
 ├── .github/workflows/         # ci.yml (Android + iOS), browserstack.yml (Android + iOS)
 ├── bitrise.yml                # emulator/browserstack (Android), ios-simulator/browserstack-ios
 ├── playwright-report/         # Generated HTML report output
@@ -99,10 +95,8 @@ injected by fixtures, which are configured by the runner config.
 └────────────────────────────────────────────────────────────┘
 ```
 
-**Key principle:** `rough/` is the "before" state — raw scripts where every locator and
-interaction is inlined into the test. `pages/` + `fixtures/` + `tests/` are the "after" state —
-the same behaviour refactored into the Page Object Model. Diffing them is the fastest way to see
-what the framework buys you.
+**Key principle:** `pages/` + `fixtures/` + `tests/` keep every locator and interaction out of the
+test body — refactored into the Page Object Model instead of inlined.
 
 ---
 
@@ -122,12 +116,11 @@ Single source of truth, passed to `defineConfig()`. Top-level settings:
 | `forbidOnly` | `!!process.env.CI` | a stray `test.only` fails the build |
 | `workers` | `1` | serial: one Appium, one device |
 
-Then nine **projects**, each with its own `use` block:
+Then eight **projects**, each with its own `use` block:
 
 | Project | `device` | Notes |
 |---------|----------|-------|
 | `android` | `provider: 'emulator'`, `name: ANDROID_AVD` | `appium.autoStartDevice: true` cold-boots the AVD |
-| `android-rough` | same | `testDir: './rough'` |
 | `android-ci` | `provider: 'emulator'`, `udid: ANDROID_UDID` | `autoStartDevice: false` — the CI step already booted it; `retries: 2` |
 | `android-device` | `provider: 'local-device'`, `udid: DEVICE_UDID` | physical handset over adb |
 | `browserstack-android` | `provider: 'browserstack'`, `name`, `osVersion` | `buildPath` takes a `bs://` id; `workers` = parallel cloud sessions |
@@ -274,13 +267,6 @@ No locators, no sleeps, no Android quirks in the test body — all of that lives
 `beforeEach` logs in fresh before every test; `resetBetweenTests` plus `afterEach` keep tests
 independent. `datadriven.spec.ts` is the parameterized variant.
 
-### 4.6 `rough/` — Scratch / Reference Specs
-
-Self-contained specs importing the **base** `@taqwright/taqwright` runner directly, bypassing
-fixtures and page objects, with every locator inlined. Kept as the "before refactor" reference and
-run through the dedicated `android-rough` project (`testDir: './rough'`), so they never join the
-maintained suite by accident.
-
 ---
 
 ## 5. Core Concepts Reference
@@ -391,5 +377,3 @@ by the runner via `buildPath`, so nothing needs to be pre-installed.
    scenarios (specs) each live in their own layer.
 6. **Portability** — because only `taqwright.config.ts` knows about devices, the same specs run on
    an emulator, a handset, GitHub Actions, Bitrise, and BrowserStack unchanged.
-
-The `rough/` → `tests/` progression in this repo is a worked example of that refactor.

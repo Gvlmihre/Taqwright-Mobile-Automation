@@ -8,7 +8,6 @@ import { defineConfig, Platform } from '@taqwright/taqwright';
  *
  * Projects:
  *   android              → local emulator, Taqwright boots the AVD for you
- *   android-rough        → the scratch specs in rough/ (reference, not maintained)
  *   android-ci           → an emulator that is *already* running (GitHub Actions / Bitrise)
  *   android-device       → a physical handset plugged into adb
  *   browserstack-android → BrowserStack real-device cloud (Android)
@@ -27,8 +26,6 @@ const APP_PATH = './app/way2automation.apk';
 const AVD_NAME = process.env.ANDROID_AVD ?? 'Pixel_10_Pro_XL';
 /** adb serial of an already-booted emulator (CI) — see `npx taqwright devices`. */
 const CI_UDID = process.env.ANDROID_UDID ?? 'emulator-5554';
-/** adb serial of the physical device (MobileWright repo used 'R3CT204N57L'). */
-const DEVICE_UDID = process.env.DEVICE_UDID ?? 'R3CT204N57L';
 
 /**
  * iOS bundle id + build. There is no `.app`/`.ipa` checked into `app/` yet — add one
@@ -48,7 +45,7 @@ const SIMULATOR_OS_VERSION = process.env.IOS_OS_VERSION ?? '26.5';
 /** UDID of an already-booted simulator (CI, or a local sim you booted yourself) — see `npx taqwright devices`. */
 const CI_IOS_UDID = process.env.IOS_UDID ?? '786021CF-AD4B-4C3E-8F14-509D9754B366';
 /** UDID of the physical iPhone (from `xcrun xctrace list devices` or Xcode's Devices window). */
-const IOS_DEVICE_UDID = process.env.IOS_DEVICE_UDID ?? '';
+//const IOS_DEVICE_UDID = process.env.IOS_DEVICE_UDID ?? '';
 
 export default defineConfig({
   testDir: './tests',
@@ -99,20 +96,6 @@ export default defineConfig({
       },
     },
 
-    /* ── The scratch specs in rough/ — reference only, not the maintained suite ── */
-    {
-      name: 'android-rough',
-      testDir: './rough',
-      use: {
-        platform: Platform.ANDROID,
-        device: { provider: 'emulator', name: AVD_NAME },
-        appium: { autoStart: true, autoStartDevice: true, host: 'localhost', port: 4723, path: '/' },
-        resetBetweenTests: true,
-        buildPath: APP_PATH,
-        appBundleId: APP_PACKAGE,
-      },
-    },
-
     /* ── CI: emulator is already booted by the runner, don't try to boot one ───── */
     {
       name: 'android-ci',
@@ -150,7 +133,7 @@ export default defineConfig({
         platform: Platform.ANDROID,
         device: {
           provider: 'local-device',
-          udid: DEVICE_UDID,
+          //udid: DEVICE_UDID,
         },
         appium: { autoStart: true, host: 'localhost', port: 4723, path: '/' },
         resetBetweenTests: true,
@@ -257,7 +240,7 @@ export default defineConfig({
         platform: Platform.IOS,
         device: {
           provider: 'local-device',
-          udid: IOS_DEVICE_UDID,
+          //udid: IOS_DEVICE_UDID,
         },
         appium: { autoStart: true, host: 'localhost', port: 4723, path: '/' },
         resetBetweenTests: true,

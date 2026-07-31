@@ -56,7 +56,6 @@ should point at `Xcode.app`), a simulator runtime installed via Xcode → Settin
 | `npm run test:device` | Android suite on a physical handset (`--project android-device`, set `DEVICE_UDID`) |
 | `npm run test:ci` | Android suite against an already-booted emulator (`--project android-ci`) |
 | `npm run test:bs` | Android suite on BrowserStack real devices (`--project browserstack-android`) |
-| `npm run test:rough` | the scratch specs in `rough/` (`--project android-rough`) |
 | `npm run test:ios` | iOS suite on a local simulator (`--project ios`) |
 | `npm run test:ios:device` | iOS suite on a physical iPhone (`--project ios-device`, set `IOS_DEVICE_UDID`) |
 | `npm run test:ios:ci` | iOS suite against an already-booted simulator (`--project ios-ci`) |
@@ -70,7 +69,7 @@ should point at `Xcode.app`), a simulator runtime installed via Xcode → Settin
 
 ```
 PageObjectModelTW/
-├── taqwright.config.ts        # runner + device/app config (all 9 projects)
+├── taqwright.config.ts        # runner + device/app config (all 8 projects)
 ├── app/way2automation.apk     # the Android build under test
 │   # way2automation.app / .ipa (iOS) not checked in yet — see the note above
 ├── pages/                     # Page Object Model — one class per screen
@@ -82,21 +81,18 @@ PageObjectModelTW/
 ├── tests/                     # the maintained suite (POM + fixtures)
 │   ├── login.spec.ts
 │   └── datadriven.spec.ts
-├── rough/                     # scratch specs — base runner, everything inlined
 ├── .github/workflows/         # ci.yml (push/PR, Android + iOS) + browserstack.yml
 ├── bitrise.yml                # Bitrise emulator/simulator + BrowserStack pipelines
 └── ARCHITECTURE.md CLAUDE.md SKILLS.md COMPARISON.md
 ```
 
-Layer rule: **config → fixtures → pages → tests/data.** Specs never touch `mobile` directly;
-`rough/` exists to show what that anti-pattern looks like.
+Layer rule: **config → fixtures → pages → tests/data.** Specs never touch `mobile` directly.
 
 ## Runner projects
 
 | Project | Device | Use it for |
 |---------|--------|-----------|
 | `android` | local AVD, booted by Taqwright | day-to-day local runs |
-| `android-rough` | local AVD | the `rough/` reference specs |
 | `android-ci` | an emulator already running (`ANDROID_UDID`) | GitHub Actions, Bitrise |
 | `android-device` | physical handset (`DEVICE_UDID`) | real-device smoke |
 | `browserstack-android` | BrowserStack cloud | cross-device matrix, nightly |

@@ -12,7 +12,6 @@
     "test:ci": "taqwright test --project android-ci",
     "test:device": "taqwright test --project android-device",
     "test:bs": "taqwright test --project browserstack-android",
-    "test:rough": "taqwright test --project android-rough",
     "test:report": "taqwright test --project android --reporter html && taqwright show-report",
     "test:ios": "taqwright test --project ios",
     "test:ios:ci": "taqwright test --project ios-ci",

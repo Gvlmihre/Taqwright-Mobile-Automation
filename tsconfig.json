@@ -15,6 +15,6 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["taqwright.config.ts", "pages/**/*.ts", "fixtures/**/*.ts", "tests/**/*.ts", "rough/**/*.ts"],
+  "include": ["taqwright.config.ts", "pages/**/*.ts", "fixtures/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "playwright-report", "test-results"]
 }
