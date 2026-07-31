@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Mobile automation tests for the Way2Automation MediShop Android/iOS app with Taqwright + TypeScript + Page Object Model",
+  "description": "Mobile automation tests for the Way2Automation MediShop Android app with Taqwright + TypeScript + Page Object Model (iOS support scaffolded but disabled until an iOS build exists)",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -13,19 +13,13 @@
     "test:device": "taqwright test --project android-device",
     "test:bs": "taqwright test --project browserstack-android",
     "bs:upload": "node scripts/upload-to-browserstack.mjs",
-    "bs:upload:ios": "node scripts/upload-to-browserstack.mjs --ios",
     "test:report": "taqwright test --project android --reporter html && taqwright show-report",
-    "test:ios": "taqwright test --project ios",
-    "test:ios:ci": "taqwright test --project ios-ci",
-    "test:ios:device": "taqwright test --project ios-device",
-    "test:ios:bs": "taqwright test --project browserstack-ios",
     "report": "taqwright show-report",
     "codegen": "taqwright codegen",
     "inspect": "taqwright inspect",
     "devices": "taqwright devices",
     "doctor": "taqwright doctor",
     "setup:android": "taqwright install --with-avd",
-    "setup:ios": "appium driver install xcuitest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

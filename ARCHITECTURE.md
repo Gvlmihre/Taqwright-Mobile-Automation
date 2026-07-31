@@ -15,7 +15,7 @@ Mobile test automation framework for the **Way2Automation MediShop** Android app
 | Core API | the flat `mobile` fixture (`Mobile`) + chainable `Locator` |
 | Language | TypeScript 5.x, ESM (`"type": "module"`) |
 | Design pattern | Page Object Model + fixtures |
-| Target platform | Android + iOS (emulator/simulator, real device, BrowserStack) |
+| Target platform | Android (emulator/simulator, real device, BrowserStack) — iOS designed in but disabled (no build checked in) |
 | App under test | `com.way2automation.medishop` (MediShop, Jetpack Compose) |
 | Reporting | Playwright HTML reporter + trace viewer + video |
 | Node | ≥ 24 |
@@ -31,14 +31,15 @@ phone. Anyone who knows Playwright web testing already knows 90% of this repo.
 
 ```
 PageObjectModelTW/
-├── taqwright.config.ts        # Global runner + device configuration (9 projects)
+├── taqwright.config.ts        # Global runner + device configuration (4 active Android
+│                               # projects; 4 iOS projects commented out)
 ├── package.json               # Scripts & dependencies
 ├── tsconfig.json              # Typecheck-only TS config
 │
 ├── app/
 │   ├── way2automation.apk     # The Android build under test (installed by the runner)
-│   ├── way2automation.app     # iOS simulator build — not checked in yet, add before running `ios`/`ios-ci`
-│   └── way2automation.ipa     # iOS device build — not checked in yet, add before running `ios-device`/`browserstack-ios`
+│   ├── way2automation.app     # iOS simulator build — not checked in; `ios`/`ios-ci` are commented out until it exists
+│   └── way2automation.ipa     # iOS device build — not checked in; `ios-device`/`browserstack-ios` are commented out until it exists
 │
 ├── pages/                     # Page Object Model classes (the core abstraction)
 │   ├── LoginPage.ts
@@ -55,8 +56,8 @@ PageObjectModelTW/
 │   ├── login.spec.ts
 │   └── datadriven.spec.ts
 │
-├── .github/workflows/         # ci.yml (Android + iOS), browserstack.yml (Android + iOS)
-├── bitrise.yml                # emulator/browserstack (Android), ios-simulator/browserstack-ios
+├── .github/workflows/         # ci.yml (Android; iOS job commented out), browserstack.yml (Android; iOS job commented out)
+├── bitrise.yml                # emulator/browserstack (Android); ios-simulator/browserstack-ios commented out
 ├── playwright-report/         # Generated HTML report output
 └── test-results/              # Generated run artifacts (traces, videos)
 ```
@@ -116,7 +117,7 @@ Single source of truth, passed to `defineConfig()`. Top-level settings:
 | `forbidOnly` | `!!process.env.CI` | a stray `test.only` fails the build |
 | `workers` | `1` | serial: one Appium, one device |
 
-Then eight **projects**, each with its own `use` block:
+Then four **active** projects, each with its own `use` block:
 
 | Project | `device` | Notes |
 |---------|----------|-------|
@@ -124,6 +125,12 @@ Then eight **projects**, each with its own `use` block:
 | `android-ci` | `provider: 'emulator'`, `udid: ANDROID_UDID` | `autoStartDevice: false` — the CI step already booted it; `retries: 2` |
 | `android-device` | `provider: 'local-device'`, `udid: DEVICE_UDID` | physical handset over adb |
 | `browserstack-android` | `provider: 'browserstack'`, `name`, `osVersion` | `buildPath` takes a `bs://` id; `workers` = parallel cloud sessions |
+
+Plus four **iOS projects, commented out** (no iOS build exists yet — uncomment along with the
+backing `IOS_*` consts once one does):
+
+| Project | `device` | Notes |
+|---------|----------|-------|
 | `ios` | `provider: 'emulator'`, `name: SIMULATOR_NAME` | `appium.autoStartDevice: true` boots the named simulator; `platform: Platform.IOS` |
 | `ios-ci` | `provider: 'emulator'`, `udid: CI_IOS_UDID` | `autoStartDevice: false` — the CI step already booted it; `retries: 2` |
 | `ios-device` | `provider: 'local-device'`, `udid: IOS_DEVICE_UDID` | physical iPhone over usbmuxd; `buildPath` is a signed `.ipa` |
@@ -345,25 +352,25 @@ Device: `setOrientation`, `getClipboard`/`setClipboard`, `setLocation`, `setPerm
 
 ```bash
 npm run setup:android    # one-time toolchain + AVD
-npm run setup:ios        # one-time: Appium's XCUITest driver
-npm run doctor           # environment check (Android toolchain + Xcode)
+npm run doctor           # environment check
 npm test                 # local Android emulator
-npm run test:ios         # local iOS simulator
 npm run test:report      # run + open the HTML report
 npm run test:device      # physical Android handset (DEVICE_UDID=...)
-npm run test:ios:device  # physical iPhone (IOS_DEVICE_UDID=...)
 npm run test:bs          # BrowserStack Android (BROWSERSTACK_USERNAME/ACCESS_KEY)
-npm run test:ios:bs      # BrowserStack iOS (same credentials)
 ```
 
 **Android prerequisites:** a JDK + Android SDK (`npm run setup:android` installs both), and either
 an AVD whose id matches `ANDROID_AVD` or a handset visible to `adb devices`. The APK is installed
 by the runner via `buildPath`, so nothing needs to be pre-installed.
 
-**iOS prerequisites (macOS only):** full Xcode with a simulator runtime, and the XCUITest driver
-(`npm run setup:ios`). Unlike Android, there is no `.app`/`.ipa` checked into `app/` yet — add
-`app/way2automation.app` (simulator) and `app/way2automation.ipa` (device/BrowserStack), or point
-`IOS_APP_PATH`/`IOS_IPA_PATH` at builds produced elsewhere, before an `ios*` project can run.
+**iOS is disabled.** There is no `.app`/`.ipa` checked into `app/`, and the `ios*` projects,
+`test:ios*`/`setup:ios` scripts, and iOS CI jobs have all been commented out or removed rather than
+left to fail. To bring it back: add `app/way2automation.app` (simulator) and
+`app/way2automation.ipa` (device/BrowserStack), or point `IOS_APP_PATH`/`IOS_IPA_PATH` at builds
+produced elsewhere; re-add the `test:ios*`/`setup:ios` scripts to `package.json`; and uncomment the
+`ios*` projects in `taqwright.config.ts` and the iOS jobs in `ci.yml` / `browserstack.yml` /
+`bitrise.yml`. On macOS you'd also need full Xcode with a simulator runtime and the XCUITest driver
+(`appium driver install xcuitest`).
 
 ---
 

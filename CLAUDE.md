@@ -8,9 +8,11 @@ Guidance for AI models (Claude Code) working in this repository. Read this first
 
 ## What this project is
 
-A **mobile test-automation framework** for the Way2Automation **MediShop** Android/iOS app
+A **mobile test-automation framework** for the Way2Automation **MediShop** Android app
 (`com.way2automation.medishop`), built on **Taqwright** (Playwright's test runner over Appium 3)
-using **TypeScript** (ESM) and the **Page Object Model** pattern.
+using **TypeScript** (ESM) and the **Page Object Model** pattern. iOS support is designed into the
+config/CI/docs but is currently **commented out** everywhere — only the Android app is checked in.
+See the "Known gotchas" and "CI" sections below before re-enabling it.
 
 ## Commands
 
@@ -19,16 +21,16 @@ npm test                # Android suite on a local emulator (--project android)
 npm run test:ci         # against an already-booted emulator (--project android-ci)
 npm run test:device     # physical handset (--project android-device)
 npm run test:bs         # BrowserStack (--project browserstack-android)
-npm run test:ios        # iOS suite on a local simulator (--project ios)
-npm run test:ios:ci     # against an already-booted simulator (--project ios-ci)
-npm run test:ios:device # physical iPhone (--project ios-device)
-npm run test:ios:bs     # BrowserStack iOS (--project browserstack-ios)
 npm run test:report     # run with the HTML reporter, then open it
 npm run typecheck       # tsc --noEmit  ← run this after any code change
-npm run doctor          # environment readiness check (Android toolchain + Xcode)
+npm run doctor          # environment readiness check (Android toolchain)
 npm run devices         # list emulators / simulators / handsets
 npm run codegen         # record a spec against a live device
 ```
+
+There is no `test:ios*` / `setup:ios` script today — they were removed along with the iOS CI jobs
+and config projects. Re-add them (mirroring the Android scripts, targeting the `ios*` projects)
+once an iOS build exists and those are uncommented.
 
 There is no unit-test layer — every spec is an on-device e2e test. `npm run typecheck` is the only
 check that runs without a device; always run it before committing.
@@ -42,14 +44,16 @@ check that runs without a device; always run it before committing.
   visible to `adb devices` with its serial in `DEVICE_UDID`.
 - The APK at `app/way2automation.apk`. It is installed by the runner via `buildPath` — do not
   assume a pre-installed app.
-- **iOS only, macOS host:** full Xcode (`xcode-select -p` must point at `Xcode.app`, not just the
+- **iOS is disabled, not just unbuilt.** There is no `.app`/`.ipa` checked into `app/`, and the
+  `ios` / `ios-ci` / `ios-device` / `browserstack-ios` projects in `taqwright.config.ts`, the iOS
+  jobs in `.github/workflows/ci.yml` / `browserstack.yml` / `bitrise.yml`, and the `test:ios*` /
+  `setup:ios` npm scripts have all been commented out or removed. To re-enable: add
+  `app/way2automation.app` (simulator, for `ios`/`ios-ci`) and `app/way2automation.ipa` (signed
+  device build, for `ios-device`/`browserstack-ios`) — or point `IOS_APP_PATH`/`IOS_IPA_PATH` at
+  builds produced elsewhere — then uncomment the matching blocks and re-add the npm scripts. On a
+  macOS host you'd also need full Xcode (`xcode-select -p` must point at `Xcode.app`, not just the
   Command Line Tools) with a simulator runtime installed, plus Appium's XCUITest driver
-  (`npm run setup:ios`). `npm run doctor` checks Xcode; there is no auto-installer for it the way
-  `npm run setup:android` covers the Android toolchain.
-- **iOS builds are not checked in yet.** `app/way2automation.app` (simulator, for `ios`/`ios-ci`)
-  and `app/way2automation.ipa` (signed device build, for `ios-device`/`browserstack-ios`) must be
-  added, or `IOS_APP_PATH`/`IOS_IPA_PATH` pointed at builds produced elsewhere, before an iOS
-  project can actually run.
+  (`appium driver install xcuitest`).
 
 ---
 
@@ -192,28 +196,34 @@ the same package.
 
 ## CI
 
-- `.github/workflows/ci.yml` — every push and PR: `static` (npm ci → typecheck → `--list` for both
-  `android-ci` and `ios-ci`), `android-emulator` (KVM + cached AVD snapshot → API 34 x86_64
-  emulator → `--project android-ci`), and `ios-simulator` (`macos-14` runner → boot an iPhone 15
-  simulator → `--project ios-ci`). Each uploads its own `playwright-report/` + `test-results/`.
+iOS jobs/workflows below are **commented out** in each file — they're kept in place (not deleted)
+as reference for re-enabling once an iOS build exists.
+
+- `.github/workflows/ci.yml` — every push and PR: `static` (npm ci → typecheck → `--list` for
+  `android-ci`; the `ios-ci --list` step is commented out) and `android-emulator` (KVM + cached AVD
+  snapshot → API 34 x86_64 emulator → `--project android-ci`), which uploads its own
+  `playwright-report/` + `test-results/`. The `ios-simulator` job (`macos-14` runner → boot an
+  iPhone 15 simulator → `--project ios-ci`) is commented out.
 - `.github/workflows/browserstack.yml` — pushes to `main`, nightly cron, and `workflow_dispatch`:
   `browserstack-android` uploads the APK once, exports `BROWSERSTACK_APP_ID=bs://…`, runs
-  `--project browserstack-android`; `browserstack-ios` does the same with the `.ipa` and
-  `BROWSERSTACK_IOS_APP_ID` / `--project browserstack-ios`. Requires the `BROWSERSTACK_USERNAME` /
-  `BROWSERSTACK_ACCESS_KEY` repository secrets (shared by both jobs).
-- `bitrise.yml` — four workflows: `emulator` / `browserstack` (Android, `_setup`) and
+  `--project browserstack-android`. Requires the `BROWSERSTACK_USERNAME` /
+  `BROWSERSTACK_ACCESS_KEY` repository secrets. `browserstack-ios` (same idea with the `.ipa` and
+  `BROWSERSTACK_IOS_APP_ID` / `--project browserstack-ios`) is commented out, along with the
+  `ios_device`/`ios_os_version` workflow inputs.
+- `bitrise.yml` — two active workflows: `emulator` / `browserstack` (Android, `_setup`).
   `ios-simulator` / `browserstack-ios` (iOS, `_setup_ios` — needs a macOS Stack set in the Workflow
-  Editor), all publishing the report through `deploy-to-bitrise-io`.
+  Editor) and their `trigger_map` entries are commented out.
 
 When editing Android CI: the runner needs **Node 24**, a **JDK 17**, and **Appium with the
 uiautomator2 driver**; the emulator must already be booted for `--project android-ci`
 (`autoStartDevice: false`), and `ANDROID_UDID` must match its adb serial.
 
-When editing iOS CI: the runner needs a **macOS host with Xcode** (GitHub Actions: `macos-14`;
-Bitrise: a macOS Stack) and **Appium with the xcuitest driver**; the simulator must already be
-booted for `--project ios-ci` (`autoStartDevice: false`), and `IOS_UDID` must match the booted
-simulator's UDID (resolve it with `xcrun simctl list devices available -j`, as both `ci.yml` and
-`bitrise.yml` do). None of the iOS jobs will pass until `app/way2automation.app` / `.ipa` exist.
+When re-enabling iOS CI: uncomment the relevant job/workflow blocks first. The runner needs a
+**macOS host with Xcode** (GitHub Actions: `macos-14`; Bitrise: a macOS Stack) and **Appium with
+the xcuitest driver**; the simulator must already be booted for `--project ios-ci`
+(`autoStartDevice: false`), and `IOS_UDID` must match the booted simulator's UDID (resolve it with
+`xcrun simctl list devices available -j`, as both `ci.yml` and `bitrise.yml` do). None of the iOS
+jobs will pass until `app/way2automation.app` / `.ipa` exist.
 
 ---
 

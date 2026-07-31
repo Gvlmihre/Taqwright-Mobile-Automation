@@ -33,8 +33,9 @@ jobs:
       - name: List tests (validates taqwright.config.ts loads)
         run: npx taqwright test --project android-ci --list
 
-      - name: List iOS tests (validates the ios-ci project loads)
-        run: npx taqwright test --project ios-ci --list
+      # iOS disabled — no iOS app build exists yet, only Android.
+      # - name: List iOS tests (validates the ios-ci project loads)
+      #   run: npx taqwright test --project ios-ci --list
 
   # ── Real run on a GitHub-hosted Android emulator ─────────────────────────────
   android-emulator:
@@ -120,64 +121,64 @@ jobs:
           retention-days: 14
 
   # ── Real run on a GitHub-hosted iOS simulator ────────────────────────────────
-  # Requires app/way2automation.app (a simulator build) — see IOS_APP_PATH in
-  # taqwright.config.ts. This job will fail until that build is added or IOS_APP_PATH
-  # points at one produced elsewhere in the pipeline.
-  ios-simulator:
-    name: iOS simulator (${{ matrix.device }})
-    runs-on: macos-14
-    needs: static
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        device: ['iPhone 15']
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - run: npm ci
-
-      - name: Install Appium + XCUITest driver
-        run: |
-          npm i -g appium@3
-          appium driver install xcuitest
-
-      - name: Resolve and boot the simulator
-        id: sim
-        run: |
-          UDID=$(xcrun simctl list devices available -j \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
-                const runtimes=JSON.parse(s).devices;
-                for (const list of Object.values(runtimes)) {
-                  const hit=list.find(d=>d.name==='${{ matrix.device }}');
-                  if (hit) { console.log(hit.udid); process.exit(0); }
-                }
-                process.exit(1);
-              })")
-          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
-
-      - name: Run Taqwright suite on the simulator
-        env:
-          IOS_UDID: ${{ steps.sim.outputs.udid }}
-        run: npx taqwright test --project ios-ci
-
-      - name: Shut down the simulator
-        if: always()
-        run: xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true
-
-      - name: Upload HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqwright-report-ios-${{ matrix.device }}
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 14
+  # iOS disabled — no iOS app build exists yet, only Android. Uncomment once
+  # app/way2automation.app (a simulator build) exists — see IOS_APP_PATH in
+  # taqwright.config.ts.
+  # ios-simulator:
+  #   name: iOS simulator (${{ matrix.device }})
+  #   runs-on: macos-14
+  #   needs: static
+  #   timeout-minutes: 60
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       device: ['iPhone 15']
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 24
+  #         cache: npm
+  #
+  #     - run: npm ci
+  #
+  #     - name: Install Appium + XCUITest driver
+  #       run: |
+  #         npm i -g appium@3
+  #         appium driver install xcuitest
+  #
+  #     - name: Resolve and boot the simulator
+  #       id: sim
+  #       run: |
+  #         UDID=$(xcrun simctl list devices available -j \
+  #           | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+  #               const runtimes=JSON.parse(s).devices;
+  #               for (const list of Object.values(runtimes)) {
+  #                 const hit=list.find(d=>d.name==='${{ matrix.device }}');
+  #                 if (hit) { console.log(hit.udid); process.exit(0); }
+  #               }
+  #               process.exit(1);
+  #             })")
+  #         echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+  #         xcrun simctl boot "$UDID"
+  #         xcrun simctl bootstatus "$UDID" -b
+  #
+  #     - name: Run Taqwright suite on the simulator
+  #       env:
+  #         IOS_UDID: ${{ steps.sim.outputs.udid }}
+  #       run: npx taqwright test --project ios-ci
+  #
+  #     - name: Shut down the simulator
+  #       if: always()
+  #       run: xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true
+  #
+  #     - name: Upload HTML report
+  #       if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: taqwright-report-ios-${{ matrix.device }}
+  #         path: |
+  #           playwright-report/
+  #           test-results/
+  #         retention-days: 14

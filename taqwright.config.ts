@@ -14,10 +14,10 @@ import { defineConfig, Platform } from '@taqwright/taqwright';
  *   android-ci           → an emulator that is *already* running (GitHub Actions / Bitrise)
  *   android-device       → a physical handset plugged into adb
  *   browserstack-android → BrowserStack real-device cloud (Android)
- *   ios                  → local simulator, Taqwright boots it for you
- *   ios-ci               → a simulator that is *already* booted (GitHub Actions / Bitrise)
- *   ios-device           → a physical iPhone plugged in over usbmuxd
- *   browserstack-ios     → BrowserStack real-device cloud (iOS)
+ *
+ * iOS is disabled — there is only an Android app (way2automation.apk) today. The
+ * ios / ios-ci / ios-device / browserstack-ios projects below are commented out;
+ * uncomment them once an iOS build (`.app`/`.ipa`) exists.
  *
  * Run one with:  npx taqwright test --project <name>
  */
@@ -30,25 +30,22 @@ const AVD_NAME = process.env.ANDROID_AVD ?? 'Pixel_10_Pro_XL';
 /** adb serial of an already-booted emulator (CI) — see `npx taqwright devices`. */
 const CI_UDID = process.env.ANDROID_UDID ?? 'emulator-5554';
 
-/**
- * iOS bundle id + build. There is no `.app`/`.ipa` checked into `app/` yet — add one
- * (simulator build for `ios`/`ios-ci`, device/BrowserStack build for the rest) or point
- * these env vars at it before running an iOS project.
- */
-const IOS_BUNDLE_ID = process.env.IOS_BUNDLE_ID ?? 'com.way2automation.medishop';
-/** Simulator build (`.app`), used by `ios` / `ios-ci`. */
-const IOS_APP_PATH = process.env.IOS_APP_PATH ?? './app/way2automation.app';
-/** Signed device build (`.ipa`), used by `ios-device` / `browserstack-ios`. */
-const IOS_IPA_PATH = process.env.IOS_IPA_PATH ?? './app/way2automation.ipa';
-
-/** Simulator name from `xcrun simctl list devices`. Taqwright boots it for `ios`. */
-const SIMULATOR_NAME = process.env.IOS_SIMULATOR_NAME ?? 'iPhone 17 Pro';
-/** iOS runtime version backing that simulator. */
-const SIMULATOR_OS_VERSION = process.env.IOS_OS_VERSION ?? '26.5';
-/** UDID of an already-booted simulator (CI, or a local sim you booted yourself) — see `npx taqwright devices`. */
-const CI_IOS_UDID = process.env.IOS_UDID ?? '786021CF-AD4B-4C3E-8F14-509D9754B366';
-/** UDID of the physical iPhone (from `xcrun xctrace list devices` or Xcode's Devices window). */
-//const IOS_DEVICE_UDID = process.env.IOS_DEVICE_UDID ?? '';
+// iOS disabled — no `.app`/`.ipa` checked into `app/` yet, only Android. Uncomment
+// these along with the iOS projects below once an iOS build exists.
+// const IOS_BUNDLE_ID = process.env.IOS_BUNDLE_ID ?? 'com.way2automation.medishop';
+// /** Simulator build (`.app`), used by `ios` / `ios-ci`. */
+// const IOS_APP_PATH = process.env.IOS_APP_PATH ?? './app/way2automation.app';
+// /** Signed device build (`.ipa`), used by `ios-device` / `browserstack-ios`. */
+// const IOS_IPA_PATH = process.env.IOS_IPA_PATH ?? './app/way2automation.ipa';
+//
+// /** Simulator name from `xcrun simctl list devices`. Taqwright boots it for `ios`. */
+// const SIMULATOR_NAME = process.env.IOS_SIMULATOR_NAME ?? 'iPhone 17 Pro';
+// /** iOS runtime version backing that simulator. */
+// const SIMULATOR_OS_VERSION = process.env.IOS_OS_VERSION ?? '26.5';
+// /** UDID of an already-booted simulator (CI, or a local sim you booted yourself) — see `npx taqwright devices`. */
+// const CI_IOS_UDID = process.env.IOS_UDID ?? '786021CF-AD4B-4C3E-8F14-509D9754B366';
+// /** UDID of the physical iPhone (from `xcrun xctrace list devices` or Xcode's Devices window). */
+// const IOS_DEVICE_UDID = process.env.IOS_DEVICE_UDID ?? '';
 
 export default defineConfig({
   testDir: './tests',
@@ -184,109 +181,113 @@ export default defineConfig({
       workers: Number(process.env.BS_WORKERS ?? 2),
     },
 
-    /* ── Local simulator: Taqwright starts Appium AND boots the simulator ─────── */
-    {
-      name: 'ios',
-      use: {
-        platform: Platform.IOS,
-        device: {
-          provider: 'emulator',
-          name: SIMULATOR_NAME,
-          osVersion: SIMULATOR_OS_VERSION,
-          orientation: 'portrait',
-        },
-        appium: {
-          autoStart: true,
-          autoStartDevice: true, // boots the named simulator
-          host: 'localhost',
-          port: 4723,
-          path: '/',
-          logLevel: 'warn',
-        },
-        resetBetweenTests: true,
-        buildPath: IOS_APP_PATH,
-        appBundleId: IOS_BUNDLE_ID,
-        trace: 'on-failure',
-        video: 'on-failure',
-      },
-    },
-
-    /* ── CI: simulator is already booted, don't try to boot one ───────────────── */
-    {
-      name: 'ios-ci',
-      use: {
-        platform: Platform.IOS,
-        device: {
-          provider: 'emulator',
-          udid: CI_IOS_UDID,
-        },
-        appium: {
-          autoStart: true,
-          autoStartDevice: false, // the CI step already booted it
-          host: 'localhost',
-          port: 4723,
-          path: '/',
-          logLevel: 'warn',
-          newCommandTimeout: 240,
-        },
-        resetBetweenTests: true,
-        buildPath: IOS_APP_PATH,
-        appBundleId: IOS_BUNDLE_ID,
-        trace: 'on',
-        video: 'on-failure',
-      },
-      retries: 2,
-    },
-
-    /* ── Physical iPhone over usbmuxd ───────────────────────────────────────────── */
-    {
-      name: 'ios-device',
-      use: {
-        platform: Platform.IOS,
-        device: {
-          provider: 'local-device',
-          //udid: IOS_DEVICE_UDID,
-        },
-        appium: { autoStart: true, host: 'localhost', port: 4723, path: '/' },
-        resetBetweenTests: true,
-        buildPath: IOS_IPA_PATH,
-        appBundleId: IOS_BUNDLE_ID,
-        trace: 'on-failure',
-        video: 'on-failure',
-      },
-    },
-
-    /* ── BrowserStack real devices (iOS) ───────────────────────────────────────── */
-    /* Credentials come from the environment, never from this file — same two vars
-     * as browserstack-android. Pre-upload the .ipa once and set
-     * BROWSERSTACK_IOS_APP_ID=bs://<id> so each worker doesn't re-upload the build.
+    /* ── iOS projects — disabled, no iOS app build exists yet, only Android. ──────
+     * Uncomment these (and the IOS_* consts above) once an iOS `.app`/`.ipa` exists.
+     *
+     * { ── Local simulator: Taqwright starts Appium AND boots the simulator ─────── }
+     * {
+     *   name: 'ios',
+     *   use: {
+     *     platform: Platform.IOS,
+     *     device: {
+     *       provider: 'emulator',
+     *       name: SIMULATOR_NAME,
+     *       osVersion: SIMULATOR_OS_VERSION,
+     *       orientation: 'portrait',
+     *     },
+     *     appium: {
+     *       autoStart: true,
+     *       autoStartDevice: true, // boots the named simulator
+     *       host: 'localhost',
+     *       port: 4723,
+     *       path: '/',
+     *       logLevel: 'warn',
+     *     },
+     *     resetBetweenTests: true,
+     *     buildPath: IOS_APP_PATH,
+     *     appBundleId: IOS_BUNDLE_ID,
+     *     trace: 'on-failure',
+     *     video: 'on-failure',
+     *   },
+     * },
+     *
+     * { ── CI: simulator is already booted, don't try to boot one ───────────────── }
+     * {
+     *   name: 'ios-ci',
+     *   use: {
+     *     platform: Platform.IOS,
+     *     device: {
+     *       provider: 'emulator',
+     *       udid: CI_IOS_UDID,
+     *     },
+     *     appium: {
+     *       autoStart: true,
+     *       autoStartDevice: false, // the CI step already booted it
+     *       host: 'localhost',
+     *       port: 4723,
+     *       path: '/',
+     *       logLevel: 'warn',
+     *       newCommandTimeout: 240,
+     *     },
+     *     resetBetweenTests: true,
+     *     buildPath: IOS_APP_PATH,
+     *     appBundleId: IOS_BUNDLE_ID,
+     *     trace: 'on',
+     *     video: 'on-failure',
+     *   },
+     *   retries: 2,
+     * },
+     *
+     * { ── Physical iPhone over usbmuxd ───────────────────────────────────────────── }
+     * {
+     *   name: 'ios-device',
+     *   use: {
+     *     platform: Platform.IOS,
+     *     device: {
+     *       provider: 'local-device',
+     *       //udid: IOS_DEVICE_UDID,
+     *     },
+     *     appium: { autoStart: true, host: 'localhost', port: 4723, path: '/' },
+     *     resetBetweenTests: true,
+     *     buildPath: IOS_IPA_PATH,
+     *     appBundleId: IOS_BUNDLE_ID,
+     *     trace: 'on-failure',
+     *     video: 'on-failure',
+     *   },
+     * },
+     *
+     * { ── BrowserStack real devices (iOS) ───────────────────────────────────────── }
+     * { Credentials come from the environment, never from this file — same two vars
+     *   as browserstack-android. Pre-upload the .ipa once and set
+     *   BROWSERSTACK_IOS_APP_ID=bs://<id> so each worker doesn't re-upload the build.
+     * }
+     * {
+     *   name: 'browserstack-ios',
+     *   use: {
+     *     platform: Platform.IOS,
+     *     device: {
+     *       provider: 'browserstack',
+     *       name: process.env.BS_IOS_DEVICE ?? 'iPhone 15',
+     *       osVersion: process.env.BS_IOS_OS_VERSION ?? '17',
+     *       orientation: 'portrait',
+     *     },
+     *     resetBetweenTests: true,
+     *     buildPath: process.env.BROWSERSTACK_IOS_APP_ID ?? IOS_IPA_PATH,
+     *     appBundleId: IOS_BUNDLE_ID,
+     *     trace: 'on',
+     *     video: 'off', // BrowserStack records server-side
+     *     capabilities: {
+     *       'bstack:options': {
+     *         projectName: 'PageObjectModelTW',
+     *         // Just a label to group this run in the BrowserStack dashboard —
+     *         // nothing to do with the BrowserStack Local tunnel.
+     *         buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'medishop-manual-run',
+     *         appiumVersion: '2.19.0',
+     *       },
+     *     },
+     *   },
+     *   workers: Number(process.env.BS_WORKERS ?? 2),
+     * },
      */
-    {
-      name: 'browserstack-ios',
-      use: {
-        platform: Platform.IOS,
-        device: {
-          provider: 'browserstack',
-          name: process.env.BS_IOS_DEVICE ?? 'iPhone 15',
-          osVersion: process.env.BS_IOS_OS_VERSION ?? '17',
-          orientation: 'portrait',
-        },
-        resetBetweenTests: true,
-        buildPath: process.env.BROWSERSTACK_IOS_APP_ID ?? IOS_IPA_PATH,
-        appBundleId: IOS_BUNDLE_ID,
-        trace: 'on',
-        video: 'off', // BrowserStack records server-side
-        capabilities: {
-          'bstack:options': {
-            projectName: 'PageObjectModelTW',
-            // Just a label to group this run in the BrowserStack dashboard —
-            // nothing to do with the BrowserStack Local tunnel.
-            buildName: process.env.BROWSERSTACK_BUILD_NAME ?? 'medishop-manual-run',
-            appiumVersion: '2.19.0',
-          },
-        },
-      },
-      workers: Number(process.env.BS_WORKERS ?? 2),
-    },
   ],
 });

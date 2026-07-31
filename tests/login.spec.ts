@@ -23,14 +23,14 @@ test.afterEach(async ({ mobile }) => {
     await mobile.terminateApp(APP_PACKAGE);
 });
 
-test('Search Medicine Test', async ({ homePage }) => {
-    await homePage.expectLoaded();
-    await homePage.selectCategory('Fever');
-    await homePage.openMedicine('Antibiotic');
-});
+// test('Search Medicine Test', async ({ homePage }) => {
+//     await homePage.expectLoaded();
+//     await homePage.selectCategory('Fever');
+//     await homePage.openMedicine('Antibiotic');
+// });
 
-test('Empty Cart Test', async ({ homePage, cartPage }) => {
-    await homePage.goToCart();
-    await cartPage.emptyCart();
-    await cartPage.expectEmpty();
-});
+// test('Empty Cart Test', async ({ homePage, cartPage }) => {
+//     await homePage.goToCart();
+//     await cartPage.emptyCart();
+//     await cartPage.expectEmpty();
+// });

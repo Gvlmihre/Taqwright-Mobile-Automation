@@ -20,7 +20,7 @@ and use the same Page Object Model layering. This file is the delta — what to 
 | Cloud | — | BrowserStack / LambdaTest as a first-class provider |
 | Artifacts | HTML report | HTML report + **trace timeline + video + HAR**, each `on-failure` |
 | Tooling | — | `init`, `doctor`, `devices`, `inspect`, `codegen`, `install`, `merge-reports`, `show-report` |
-| iOS | supported by the framework | `ios` / `ios-ci` / `ios-device` / `browserstack-ios` projects — same specs, `Platform.IOS`; needs an `.app`/`.ipa` build (not checked in yet) |
+| iOS | supported by the framework | `ios` / `ios-ci` / `ios-device` / `browserstack-ios` projects exist — same specs, `Platform.IOS` — but are **commented out** in `taqwright.config.ts` / CI, since no `.app`/`.ipa` build is checked in |
 | Node | any modern | **≥ 24** |
 
 ## 1. Fixtures: two objects vs one
@@ -175,19 +175,22 @@ Cloud parallelism is plain `workers: N`.
 
 ## 10. CI
 
-MobileWright's repo ran locally against a named handset. This repo ships:
+MobileWright's repo ran locally against a named handset. This repo ships (Android active today;
+iOS wired up but commented out everywhere — see README.md):
 
-- **GitHub Actions `ci.yml`** — typecheck + config-load check (Android and iOS), then an API 34
-  emulator (cached AVD snapshot) and an iPhone 15 simulator (macOS runner) on every push and PR,
-  with the report as a build artifact for each.
-- **GitHub Actions `browserstack.yml`** — APK/`.ipa` uploaded once each, `bs://` id reused, real
-  Android and iOS devices on `main` + nightly + manual.
-- **`bitrise.yml`** — the same four paths (`emulator`, `browserstack`, `ios-simulator`,
-  `browserstack-ios`) as Bitrise workflows; the iOS two need a macOS Stack.
+- **GitHub Actions `ci.yml`** — typecheck + config-load check (`android-ci`; the `ios-ci` list step
+  is commented out), then an API 34 emulator on every push and PR, with the report as a build
+  artifact. The `ios-simulator` job (iPhone 15 on a macOS runner) is commented out.
+- **GitHub Actions `browserstack.yml`** — APK uploaded once, `bs://` id reused, real Android
+  devices on `main` + nightly + manual. The `browserstack-ios` job (same for the `.ipa`) is
+  commented out.
+- **`bitrise.yml`** — `emulator` and `browserstack` are active Bitrise workflows; `ios-simulator`
+  and `browserstack-ios` (plus their shared `_setup_ios`) are commented out and need a macOS Stack
+  once re-enabled.
 
-Because only `taqwright.config.ts` knows about devices, the specs themselves are identical across
-all nine environments — once an iOS build exists (see the note in README.md; none is checked in
-yet).
+Because only `taqwright.config.ts` knows about devices, the specs themselves would be identical
+across all environments — once an iOS build exists and the commented-out projects/jobs are
+uncommented (see the note in README.md; no `.app`/`.ipa` is checked in yet).
 
 ---
 
