@@ -8,16 +8,17 @@ export class HomePage {
 
     // ----Locators------
     private get medicineList() {
-        return this.mobile.getById('list_id');
+        return this.mobile.getByXpath("//*[@resource-id='list_id']");
     }
+
 
     /** Parameterized locator — a private method, not a getter. */
     private category(name: string) {
-        return this.mobile.getByText(name);
-    }
+        return this.mobile.getByXpath(`//*[@text='${name}']`).nth(0)
+   }
 
     private medicine(name: string) {
-        return this.mobile.getByText(name, { exact: false });
+        return this.mobile.getByXpath(`//*[@text='${name}']`);
     }
 
     private get cartTab() {
@@ -49,7 +50,7 @@ export class HomePage {
      * "swipe until isVisible()" loop: it uses the native scroll where available
      * and falls back to a gesture, then the click auto-waits.
      */
-    async openMedicine(name: string, direction: ScrollDirection = 'down') {
+    async openMedicine(name: string, direction: ScrollDirection = 'left') {
         const item = this.medicine(name);
         await item.scrollIntoView({ direction, maxAttempts: 10 });
         await item.click();

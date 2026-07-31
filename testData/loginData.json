@@ -1,10 +1,14 @@
 [
   {
-    "email": "admin@way2automation.com",
-    "password": "Way2@123"
+    "email": "trainer@way2automation.com",
+    "password": "way2automation"    
   },
   {
-    "email": "tester@way2automation.com",
-    "password": "Test@1234"
+    "email": "emma@demoapp.com",
+    "password": "10203040"
+  },
+  {
+    "email": "testuser@gmail.com",
+    "password": "test123"
   }
 ]

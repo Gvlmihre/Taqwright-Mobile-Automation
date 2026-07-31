@@ -13,21 +13,32 @@ export class LoginPage {
     constructor(private readonly mobile: Mobile) {}
 
     // ----Locators------
+    // private get emailField() {
+    //     return this.mobile.getById('email_id');
+    // }
+
     private get emailField() {
-        return this.mobile.getById('email_id');
-    }
+         return this.mobile.getByUiSelector("new UiSelector().resourceId(\"email_id\")");
+     }
+
+
+
+    // private get passwordField() {
+    //     return this.mobile.getById('password_id');
+    // }
 
     private get passwordField() {
-        return this.mobile.getById('password_id');
-    }
+        return this.mobile.getByUiSelector("new UiSelector().resourceId(\"password_id\")");
+     }
 
-    private get termsCheckbox() {
-        return this.mobile.getByType('android.widget.CheckBox');
-    }
+    // private get termsCheckbox() {
+    //     return this.mobile.getByType('android.widget.CheckBox');
+    // }
 
     private get signInButton() {
         return this.mobile.getByText('Sign In');
     }
+
 
     // ----Actions----
 
@@ -51,10 +62,12 @@ export class LoginPage {
 
     /** `fill` focuses, clears, then sends real key events — no select-all/cut dance. */
     async enterEmail(email: string) {
+        await this.mobile.getByUiSelector("new UiSelector().resourceId(\"email_id\")").clear();
         await this.emailField.fill(email);
     }
 
     async enterPassword(password: string) {
+        await this.mobile.getByUiSelector("new UiSelector().resourceId(\"password_id\")").clear();
         await this.passwordField.fill(password);
     }
 
@@ -68,7 +81,7 @@ export class LoginPage {
     /** `check()` is idempotent — safe to call whatever state the box is in. */
     async acceptTermsAndSubmit() {
         await this.dismissKeyboard();
-        await this.termsCheckbox.check();
+        //await this.termsCheckbox.check();
         await this.signInButton.click();
     }
 

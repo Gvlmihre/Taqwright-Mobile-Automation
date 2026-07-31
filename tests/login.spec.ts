@@ -9,11 +9,15 @@ import testData from '../testData/loginData.json' with { type: 'json' };
 
 const login = testData[0];
 
-test.beforeEach(async ({ loginPage }) => {
-    // resetBetweenTests has already reinstalled + launched a clean app.
+// test.beforeEach(async ({ loginPage }) => {
+//     // resetBetweenTests has already reinstalled + launched a clean app.
+//     await loginPage.open();
+//     await loginPage.login(login.email, login.password);
+// });
+test('Log in test', async ({loginPage}) => {
     await loginPage.open();
     await loginPage.login(login.email, login.password);
-});
+})
 
 test.afterEach(async ({ mobile }) => {
     await mobile.terminateApp(APP_PACKAGE);
