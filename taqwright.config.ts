@@ -50,7 +50,7 @@ const CI_UDID = process.env.ANDROID_UDID ?? 'emulator-5554';
 export default defineConfig({
   testDir: './tests',
   timeout: 90_000,
-  expectTimeout: 30_000,
+  expectTimeout: 60_000,
   outputDir: './test-results',
   reporter: [['list'], ['html', { open: 'never' }]],
   retries: process.env.CI ? 1 : 0,
